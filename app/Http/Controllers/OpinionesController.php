@@ -157,12 +157,12 @@ class OpinionesController extends Controller
             $data = $this->preCalculos();
         }
         $data = $this->loadData();
-        $mejor_mes = $request->get('mejor_mes');
+        //$mejor_mes = $request->get('mejor_mes');
         $alojamiento = $request->get('alojamiento');
-        $accesibilidad = $request->get('accesibilidad');
-        $precio = $request->get('precio');
-        $clima = $request->get('clima');
-        $comida = $request->get('comida');
+        //$accesibilidad = $request->get('accesibilidad');
+        //$precio = $request->get('precio');
+        //$clima = $request->get('clima');
+        //$comida = $request->get('comida');
         $conexion_internet = $request->get('conexion_internet');
         $latitud = $request->get('latitud');
         $longitud = $request->get('longitud');
@@ -173,12 +173,7 @@ class OpinionesController extends Controller
 
 
         $instances = $this->getClassInstances(
-            $mejor_mes,
             $alojamiento,
-            $accesibilidad,
-            $precio,
-            $clima,
-            $comida,
             $conexion_internet,
             $latitud,
             $longitud
@@ -308,12 +303,8 @@ class OpinionesController extends Controller
     public function getCountAttributes()
     {
         $row = DB::select(
-            "SELECT COUNT(DISTINCT `mejor_mes`) AS mejor_mes, 
+            "SELECT 
         COUNT(DISTINCT `alojamiento`) AS alojamiento, 
-        COUNT(DISTINCT `accesibilidad`) as accesibilidad, 
-        COUNT(DISTINCT `precio`) AS precio, 
-        COUNT(DISTINCT `clima`) AS clima, 
-        COUNT(DISTINCT `comida`) AS comida, 
         COUNT(DISTINCT `conexion_internet`) as conexion_internet, 
         COUNT(DISTINCT latitud) AS latitud, 
         COUNT(DISTINCT longitud) AS longitud 
@@ -324,12 +315,7 @@ class OpinionesController extends Controller
         if ($row !== null) {
             foreach ($row as $value) {
                 $array = [
-                    "mejor_mes" => $value->mejor_mes,
                     "alojamiento" => $value->alojamiento,
-                    "accesibilidad" => $value->accesibilidad,
-                    "precio" => $value->precio,
-                    "clima" => $value->clima,
-                    "comida" => $value->comida,
                     "conexion_internet" => $value->conexion_internet,
                     "latitud" => $value->latitud,
                     "longitud" => $value->longitud
@@ -370,12 +356,7 @@ class OpinionesController extends Controller
     }
 
     public function getClassInstances(
-        $mejor_mes,
         $alojamiento,
-        $accesibilidad,
-        $precio,
-        $clima,
-        $comida,
         $conexion_internet,
         $latitud,
         $longitud
@@ -384,12 +365,7 @@ class OpinionesController extends Controller
         $filas = $rows[0]->filas;
         $frequencies = [];
         $att = array(
-            "mejor_mes" => $mejor_mes,
             "alojamiento" => $alojamiento,
-            "accesibilidad" => $accesibilidad,
-            "precio" => $precio,
-            "clima" => $clima,
-            "comida" => $comida,
             "conexion_internet" => $conexion_internet,
             "latitud" => $latitud,
             "longitud" => $longitud
