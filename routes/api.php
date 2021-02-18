@@ -17,9 +17,9 @@ use App\Models\lugares;
 |
 */
 
-Route::get('/euclides', [OpinionesController::class, 'euclides']);
+Route::post('/euclides', [OpinionesController::class, 'euclides']);
 
-Route::get('/bayes', [OpinionesController::class, 'bayes']);
+Route::post('/bayes', [OpinionesController::class, 'bayes']);
 
 Route::resource('lugares', LugaresController::class);
 
