@@ -147,7 +147,7 @@ class OpinionesController extends Controller
         }
 
         $lugar = DB::table('lugares')->where('id_lugar', $result[$posMin])->first();
-        return $lugar;
+        return json_encode($lugar);
     }
 
     public function bayes(Request $request)
