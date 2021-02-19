@@ -152,67 +152,39 @@ class OpinionesController extends Controller
 
     public function bayes(Request $request)
     {
-        $data=null;
-        if ($this->loadData() == null) {
-            $data = $this->preCalculos();
-        }
-        $data = $this->loadData();
-        //$mejor_mes = $request->get('mejor_mes');
-        $alojamiento = $request->get('alojamiento');
-        //$accesibilidad = $request->get('accesibilidad');
-        //$precio = $request->get('precio');
-        //$clima = $request->get('clima');
-        //$comida = $request->get('comida');
-        $conexion_internet = $request->get('conexion_internet');
         $latitud = $request->get('latitud');
         $longitud = $request->get('longitud');
+        $id_lugar = $request->get('id_lugar');
 
-        $probAtt = $data['probAtt'];
-        $nClass = $data['countClass'];
-        $m = $data['m'];
+        $rows = DB::select("SELECT `lug`, `freq`, `lati`, `longi` FROM `tablaFrecuenciasLugar` 
+                WHERE `classId`=:id", ['id' => $id_lugar]);
 
-
-        $instances = $this->getClassInstances(
-            $alojamiento,
-            $conexion_internet,
-            $latitud,
-            $longitud
-        );
-        $probabilitiesPorFrecuencia = [];
-        foreach ($instances as $key => $value) {
-            $probF = [];
-            foreach ($value as $key2 => $value) {
-                $probF[$key2] = $this->calculoProbabilidad($value, $m, $probAtt[$key2], $nClass[$key]);
-            }
-            $probabilitiesPorFrecuencia[$key] = $probF;
+        $lugares_distancias = array();
+        foreach ($rows as $value) {
+            $distancia = $this->distance($latitud, $longitud, $value->lati, $value->longi, 'K');
+            array_push($lugares_distancias, ['lug' => $value->lug, 'distancia' => $distancia, 'freq' => $value->freq]);
         }
 
-        $productoFrecuencias = [];
-        foreach ($probabilitiesPorFrecuencia as $key => $value) {
-            $productoFrecuencia = 1;
-            foreach ($value as $keys => $value) {
-                $productoFrecuencia = $productoFrecuencia * $value;
-            }
-            $productoFrecuencias[$key] = $productoFrecuencia;
-        }
+        $best_dist = array_column($lugares_distancias, 'distancia');
 
-        $probClass = $data['probsClass'];
-        $probabilidadesFinales = [];
-        foreach ($productoFrecuencias as $key => $value) {
-            $probabilidadesFinales[$key] = $value * $probClass[$key];
-        }
+        array_multisort($best_dist, SORT_DESC, $lugares_distancias);
 
-        $resultadoFinal = null;
-        $mayor = 0;
-        foreach ($probabilidadesFinales as $key => $value) {
-            if ($mayor == 0 || $value > $mayor) {
-                $resultadoFinal = $key;
-                $mayor = $value;
+        $filtered = array();
+        $results = array();
+        foreach ($lugares_distancias as $key => $value) {
+            if (!in_array($value['lug'], $filtered)) {
+                array_push($filtered, $value['lug']);
+                array_push($results, $value);
             }
         }
 
-        $res = DB::table('lugares')->where('id_lugar', $resultadoFinal)->first();
-        return json_encode($res);
+        $finales = array();
+        foreach ($filtered as $value) {
+            $row = DB::select("SELECT * FROM `lugares` WHERE `id_lugar`=:id", ['id' => $value]);
+            array_push($finales, $row[0]);
+        }
+
+        return json_encode($finales);
     }
 
     private function calcularDistanciaEuclides($fila, $cantidad, $estudianteAEvaluar)
@@ -239,160 +211,22 @@ class OpinionesController extends Controller
     }
 
 
-    private function preCalculos()
-    {
-        $resultados = array();
-        $countAttributes = $this->getCountAttributes();
-        $resultados['countAttributes'] = $countAttributes;
-
-        $countClass = $this->getCountClass();
-        $resultados['countClass'] = $countClass;
-
-        $rows = $this->getRowsQuantity();
-        $resultados['rows'] = $rows;
-
-        $probsClass = $this->getProbClass($rows, $countClass);
-        $resultados['probsClass'] = $probsClass;
-
-        $probAtt = $this->getProbAtt($rows, $countAttributes);
-        $resultados['probAtt'] = $probAtt;
-
-        $m = count($countAttributes);
-        $resultados['m'] = $m;
-
-
-        $file  = fopen('calculos-previos.json', 'w');
-        fwrite($file, json_encode($resultados));
-        return $resultados;
-    }
-
-
-    private function getProbClass($rows, $aClass)
-    {
-        $probClass = [];
-        foreach ($aClass as $key => $value) {
-            $probClass[$key] = $value / $rows;
-        }
-        return $probClass;
-    }
-
-    private function getProbAtt($rows, $aAtt)
-    {
-        $probAtt = [];
-        foreach ($aAtt as $key => $value) {
-            $probAtt[$key] = 1 / $value;
-        }
-        return $probAtt;
-    }
-
-    // Este método se encarga de cargar los datos
-    // Retorna null si el número de filas en la BD cambio, sino retorna los datos
-    public function loadData()
-    {
-        $strJsonFileContents = file_get_contents("calculos-previos.json");
-        $array = json_decode($strJsonFileContents, true);
-
-        $rows = $this->getRowsQuantity();
-        if ($array == null || $rows != $array["rows"]) {
-            return null;
-        }
-        return $array;
-    }
-
-
-    public function getCountAttributes()
-    {
-        $row = DB::select(
-            "SELECT 
-        COUNT(DISTINCT `alojamiento`) AS alojamiento, 
-        COUNT(DISTINCT `conexion_internet`) as conexion_internet, 
-        COUNT(DISTINCT latitud) AS latitud, 
-        COUNT(DISTINCT longitud) AS longitud 
-        FROM `opiniones` 
-        INNER JOIN lugares ON lugares.id_lugar=opiniones.id_lugar"
-        );
-
-        if ($row !== null) {
-            foreach ($row as $value) {
-                $array = [
-                    "alojamiento" => $value->alojamiento,
-                    "conexion_internet" => $value->conexion_internet,
-                    "latitud" => $value->latitud,
-                    "longitud" => $value->longitud
-                ];
-            }
-
-            return $array;
-        }
-        return null;
-    }
-
-    public function getCountClass()
-    {
-        $countClass = [];
-        $rows = DB::select("SELECT COUNT(*) as filas from lugares");
-        $filas = $rows[0]->filas;
-        for ($i = 1; $i <= $filas; $i++) {
-            $row = DB::select("SELECT COUNT(*) as r from opiniones where id_lugar = :id", ['id' => $i]);
-            if ($row !== null) {
-                $countClass[$i] = $row[0]->r;
-            }
-        }
-
-        return $countClass;
-    }
-
-    public function getRowsQuantity()
+    private function distance($lat1, $lon1, $lat2, $lon2, $unit)
     {
 
-        $rows = DB::select("SELECT COUNT(*) as 'ROWS' FROM opiniones");
+        $theta = $lon1 - $lon2;
+        $dist = sin(deg2rad($lat1)) * sin(deg2rad($lat2)) +  cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($theta));
+        $dist = acos($dist);
+        $dist = rad2deg($dist);
+        $miles = $dist * 60 * 1.1515;
+        $unit = strtoupper($unit);
 
-        if ($rows !== null) {
-            return $rows[0]->ROWS;
+        if ($unit == "K") {
+            return ($miles * 1.609344);
+        } else if ($unit == "N") {
+            return ($miles * 0.8684);
         } else {
-            echo "0 results";
+            return $miles;
         }
-        return null;
-    }
-
-    public function getClassInstances(
-        $alojamiento,
-        $conexion_internet,
-        $latitud,
-        $longitud
-    ) {
-        $rows = DB::select("SELECT COUNT(*) as filas from lugares");
-        $filas = $rows[0]->filas;
-        $frequencies = [];
-        $att = array(
-            "alojamiento" => $alojamiento,
-            "conexion_internet" => $conexion_internet,
-            "latitud" => $latitud,
-            "longitud" => $longitud
-        );
-        for ($i = 1; $i <= $filas; $i++) {
-            $results = [];
-            foreach ($att as $key => $value) {
-                $results[$key] = $this->getInstancesByClass($i, $key, $value);
-            }
-            $frequencies[$i] = $results;
-        }
-        return $frequencies;
-    }
-
-    private function getInstancesByClass($id, $att, $attValue)
-    {
-        
-        $row = DB::select("SELECT COUNT(opiniones.id_lugar) as id_lugar FROM opiniones 
-        INNER JOIN lugares ON lugares.id_lugar=opiniones.id_lugar
-         WHERE(opiniones.id_lugar = :id && {$att} = :att)", ['id' => $id, 'att' => $attValue]);
-        if ($row !== null) {
-            return $row[0]->id_lugar;
-        }
-        return null;
-    }
-
-    private function calculoProbabilidad($instacia, $m, $prob, $n) {
-        return ($instacia+$m*$prob)/($n+$m);
     }
 }
