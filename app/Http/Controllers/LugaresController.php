@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\lugares;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class LugaresController extends Controller
 {
@@ -26,8 +27,34 @@ class LugaresController extends Controller
      */
     public function store(Request $request)
     {
-        //
-        return lugares::create($request->all());
+
+        $categoria = null;
+        switch ($request->get('categoria')) {
+            case '1':
+                $categoria="Montaña";
+                break;
+            case '2':
+                $categoria="Playa";
+                break;
+            case '3':
+                $categoria="Rural";
+                break;
+            case '4':
+                $categoria="Ciudad";
+                break;
+        }
+
+        DB::table('lugares')->insert([
+            'nombre' => $request->get('nombre'),
+            'descripcion' => $request->get('descripcion'),
+            'categoria' => $categoria,
+            'latitud' => $request->get('latitud'),
+            'longitud' => $request->get('longitud'),
+            'url_foto' => $request->get('url_foto'),
+            'url_video' => $request->get('url_video')
+        ]);
+        
+        return 'Insertado';
     }
 
     /**
